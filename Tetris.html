@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <title>Tetris</title>
+  <style>
+   * { position: absolute; margin: 0px; border-width: 0px; padding: 0px; outline: none;  -webkit-touch-callout: none; -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+   div { border-style: solid; border-width: 2px; }
+   #settings > div { width: 50px; height: 20px; }
+   .textbox { border: none; top: 0px; right: 0px; width: 32px; height: 20px; background: #404040; text-align: right; text-wrap: nowrap; }
+   #main              { border-color: #303030; }
+   #main:focus-within { border-color: #808080; }
+   .block  { position: static; border-color: #101010; }
+   .nblock { position: static; border-color: #400000; }
+   </style>
+  </head>
+ <body style="background: #000000">
+  <div id="settings" style="border-color: #303030; left: 10px; top: 10px; width: 54px; height: 144px;">
+  <div id="restart"   style="background: #802020; border-color: #401010; text-align: center; top: 0px;" onclick="init()">Reset</div>
+  <div id="scorediv"  style="background: #208020; border-color: #104010; text-align: center; top: 24px;">0</div>
+  <div id="speeddiv"  style="background: #202080; border-color: #101040; text-align: center; top: 48px;">1000</div>
+  <div id="widthdiv"  style="background: #404040; border-color: #282828; text-align: left;   top: 72px;">W: <div id="widthbox"  class="textbox" contenteditable="true" oninput="trimtext(widthbox)">10</div></div>
+  <div id="heightdiv" style="background: #404040; border-color: #282828; text-align: left;   top: 96px;">H: <div id="heightbox" class="textbox" contenteditable="true" oninput="trimtext(heightbox)">20</div></div>
+  <div id="sizediv"   style="background: #404040; border-color: #282828; text-align: left;   top: 120px;">S: <div id="sizebox"   class="textbox" contenteditable="true" oninput="trimtext(sizebox)">20</div></div>
+  </div>
+  <div id="main" style="border-width: 4px; top: 10px; left: 76px; display: grid;">
+   <div id="line"   style="border: none; display: grid;"></div>
+   <div id="tetris" style="border: none; display: grid;" tabindex="-1"></div>
+   </div>
+  <body>
+ <script>
+  let blockdivs = tetris.getElementsByTagName("div");
+  let linedivs  = line.getElementsByTagName("div");
+  let width, height, tilesize;
+  let shapes    =[
+   [{ x: 0, y: 0, color: "#4040C0", border: "#8080F0"}, { x: 1, y: 0, color: "#4040C0", border: "#80F0F0"}, { x: 2, y: 0, color: "#4040C0", border: "#8080F0"}, { x: 3, y: 0, color: "#4040C0", border: "#8080F0"}],  //I block
+   [{ x: 0, y: 0, color: "#000080", border: "#0000F0"}, { x: 1, y: 1, color: "#000080", border: "#00F0F0"}, { x: 0, y: 1, color: "#000080", border: "#0000F0"}, { x: 2, y: 1, color: "#000080", border: "#0000F0"}],  //J block
+   [{ x: 0, y: 1, color: "#804000", border: "#F08000"}, { x: 1, y: 1, color: "#804000", border: "#F0F040"}, { x: 2, y: 1, color: "#804000", border: "#F08000"}, { x: 2, y: 0, color: "#804000", border: "#F08000"}],  //L block
+   [{ x: 0, y: 1, color: "#808000", border: "#F0F000"}, { x: 0, y: 0, color: "#808000", border: "#F0F000"}, { x: 1, y: 0, color: "#808000", border: "#F0F000"}, { x: 1, y: 1, color: "#808000", border: "#F0F000"}],  //O block
+   [{ x: 0, y: 1, color: "#008000", border: "#00C000"}, { x: 1, y: 1, color: "#008000", border: "#00F000"}, { x: 1, y: 0, color: "#008000", border: "#00C000"}, { x: 2, y: 0, color: "#008000", border: "#00C000"}],  //S block
+   [{ x: 0, y: 1, color: "#800080", border: "#F000F0"}, { x: 1, y: 1, color: "#800080", border: "#F0C0F0"}, { x: 1, y: 0, color: "#800080", border: "#F000F0"}, { x: 2, y: 1, color: "#800080", border: "#F000F0"}],  //T block
+   [{ x: 0, y: 0, color: "#800000", border: "#F00000"}, { x: 1, y: 0, color: "#800000", border: "#F0C080"}, { x: 1, y: 1, color: "#800000", border: "#F00000"}, { x: 2, y: 1, color: "#800000", border: "#F00000"}]]; //Z block
+  let blocks = [[]], current, next;
+  addEventListener("keydown", onkeydown);
+  let interval = 1000, timer, playing;
+  tetris.addEventListener("focus", () => { timer = setInterval(tick, interval); playing = true; });
+  tetris.addEventListener("blur", () => { clearInterval(timer); playing = false; });
+  init();
+  function init(){
+   scorediv.innerText = 0;
+   width    = parseInt(widthbox.innerText);
+   height   = parseInt(heightbox.innerText);
+   tilesize = parseInt(sizebox.innerText);
+   current = [];
+   let first = shapes[Math.floor(Math.random() * 7)];
+   next = shapes[Math.floor(Math.random() * 7)];
+   main.style.width    = (tilesize + 4) * width + "px";
+   main.style.height   = (tilesize + 4) * (height + 2) + "px";
+   line.style.width    = (tilesize + 4) * width + "px";
+   line.style.height   = (tilesize + 4) * 2 + "px";
+   line.style.gridTemplateColumns = `repeat(${width}, ${tilesize + 4}px)`;
+   line.style.gridTemplateRows = `repeat(2, ${tilesize + 4}px)`;
+   tetris.style.top    = (tilesize + 4) * 2 + "px";
+   tetris.style.width  = (tilesize + 4) * width + "px";
+   tetris.style.height = (tilesize + 4) * height + "px";
+   tetris.style.gridTemplateColumns = `repeat(${width}, ${tilesize + 4}px)`;
+   tetris.style.gridTemplateRows = `repeat(${height}, ${tilesize + 4}px)`;
+   for (let i = 0; i < blockdivs.length;)  { blockdivs[0].remove(); }
+   for (let i = 0; i < linedivs.length;)  { linedivs[0].remove(); }
+   for (let i = 0; i < width * height; i++){
+    let block = document.createElement("div");
+    block.className = "block";
+    block.style.width = tilesize;
+    block.style.height = tilesize;
+    tetris.appendChild(block);}
+   for (let i = 0; i < width * 2; i++){
+    let block = document.createElement("div");
+    block.className = "nblock";
+    block.style.width = tilesize;
+    block.style.height = tilesize;
+    line.appendChild(block);}
+   for (let i = 0; i < height; i++) { blocks[i] = []; }
+   for (let i = 0; i < 4; i++) { current[i] = { x: first[i].x+Math.floor((width-4)/2), y: first[i].y, color: first[i].color, border: first[i].border } }
+   placeblocks(current);
+   render();
+   rendernext(); }
+  function tick(){
+   let swapblock = false;
+   let down = [];
+   for (let i = 0; i < 4; i++) { down[i] = { x: current[i].x, y: current[i].y+1, color: current[i].color, border: current[i].border } }
+   clearblocks(current);
+   if (chkmovement(down)) { current = down; }
+   else {
+    placeblocks(current);
+    for (let i = 0; i < height; i++){
+     let count = 0;
+     for (let j = 0; j < width; j++){
+     if (blocks[i][j] != null) { count++; }
+     if (count == width){
+     scorediv.innerText++;
+     if      (interval > 500) { interval -= 50; }
+     else if (interval > 250) { interval -= 25; }
+     else if (interval > 150) { interval -= 10; }
+     else if (interval > 100) { interval -= 5; }
+     speeddiv.innerText = interval;
+     clearInterval(timer);
+     timer = setInterval(tick, interval);
+     for (let k = i; k > 0; k--) { blocks[k] = blocks[k-1]; }
+     blocks[0] = []; } } }
+    current = [];
+    for (let i = 0; i < 4; i++) { current[i] = { x: next[i].x+Math.floor((width-4)/2), y: next[i].y, color: next[i].color, border: next[i].border } }
+    next = shapes[Math.floor(Math.random() * 7)];
+    swapblock = true;
+    rendernext();
+    }
+   if (chkmovement(current) != true) { init(); return; }
+   placeblocks(current);
+   render();
+   return swapblock;
+   }
+  function render(){
+   for (let i = 0; i < height; i++){
+   for (let j = 0; j < width; j++){
+   if (blocks[i][j] != null) { blockdivs[i*width+j].style.background = blocks[i][j].color; blockdivs[i*width+j].style.borderColor = blocks[i][j].border; }
+   else { blockdivs[i*width+j].style.background = ""; blockdivs[i*width+j].style.borderColor = ""; } } } 
+   clearblocks(current);
+   let outline = [];
+   for (let i = 0; i < 4; i++) { outline[i] = { x: current[i].x, y: current[i].y, border: current[i].border } }
+   while (chkmovement(outline) == true) { for (let i = 0; i < 4; i++) { outline[i].y++; } }
+   for (let i = 0; i < 4; i++) { blockdivs[(outline[i].y-1)*width+outline[i].x].style.borderColor = outline[i].border; }
+   placeblocks(current);   }
+  function rendernext(){
+   for (let i = 0; i < width * 2; i++) { linedivs[i].style.background = ""; linedivs[i].style.borderColor = ""; }
+   for (let i = 0; i < 4; i++) { let block = linedivs[next[i].y*width+next[i].x+Math.floor((width-4)/2)]; block.style.background = next[i].color; block.style.borderColor = next[i].border; } }
+  function clearblocks(selection) { for (const blockidx in selection) { let block = selection[blockidx]; blocks[block.y][block.x] = null; } }
+  function placeblocks(selection) { for (const blockidx in selection) { let block = selection[blockidx]; blocks[block.y][block.x] = { color: block.color, border: block.border }; } }
+  function chkmovement(selection) { for (const blockidx in selection) { let block = selection[blockidx]; if (block.y < 0 || block.y >= height || block.x < 0 || block.x >= width || blocks[block.y][block.x] != null) { return false; } } return true; }
+  function trymovement(selection) { clearblocks(current); if (chkmovement(selection)) { current = selection; } placeblocks(current); render(); }
+  function rotateblocks(clockwise){
+   let center = current[1];
+   if (center.color == shapes[3][0].color) { return; }
+   let rotated = [];
+   for (let i = 0; i < 4; i++){
+    rotated[i] = {};
+    let offsetx = current[i].x - center.x;
+    let offsety = current[i].y - center.y;
+    if (clockwise) { rotated[i].y = center.y + offsetx;  rotated[i].x = center.x - offsety; }
+    else           { rotated[i].y = center.y - offsetx;  rotated[i].x = center.x + offsety; }
+    rotated[i].color  = current[i].color;
+    rotated[i].border = current[i].border;}
+   trymovement(rotated);}
+  function onkeydown(event){
+   if (!playing) { return; }
+   else if (event.code == "KeyQ") { rotateblocks(false); }
+   else if (event.code == "KeyE") { rotateblocks(true); }
+   else if (event.code == "KeyA"){ let left = []; for (let i = 0; i < 4; i++) { left[i] = { x: current[i].x-1, y: current[i].y, color: current[i].color, border: current[i].border } } trymovement(left); }
+   else if (event.code == "KeyS") { tick(); clearInterval(timer); timer = setInterval(tick, interval); }
+   else if (event.code == "KeyD"){ let right = []; for (let i = 0; i < 4; i++) { right[i] = { x: current[i].x+1, y: current[i].y, color: current[i].color, border: current[i].border } } trymovement(right); }
+   else if (event.code == "Space") { while(tick() != true) {} } }
+  function trimtext(input){
+   let validchars = "0123456789"
+   Array.from(input.innerText).forEach(c => {if (!validchars.includes(c)) { input.innerText = input.innerText.replace(c, ""); resetcursor(input); } });
+   if (input.innerText.length > 4){ input.innerText = input.innerText.substring(0, 4); resetcursor(input); } }
+  function resetcursor(input){
+   if (input.innerText.length == 0) { return; }
+   let range = document.createRange();
+   let sel = window.getSelection();
+   range.setStart(input.childNodes[0], input.innerText.length);
+   sel.removeAllRanges();
+   sel.addRange(range);}
+  </script>
+ </html>

@@ -41,7 +41,7 @@
    [{ x: 0, y: 0, color: "#800000", border: "#F00000"}, { x: 1, y: 0, color: "#800000", border: "#F0C080"}, { x: 1, y: 1, color: "#800000", border: "#F00000"}, { x: 2, y: 1, color: "#800000", border: "#F00000"}]]; //Z block
   let blocks = [[]], current, next;
   addEventListener("keydown", onkeydown);
-  let interval = timer, playing;
+  let interval, timer, playing;
   tetris.addEventListener("focus", () => { timer = setInterval(tick, interval); playing = true; });
   tetris.addEventListener("blur", () => { clearInterval(timer); playing = false; });
   init();

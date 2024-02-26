@@ -9,6 +9,7 @@
    .textbox { border: none; top: 0px; right: 0px; width: 32px; height: 20px; background: #404040; text-align: right; text-wrap: nowrap; }
    #main              { border-color: #303030; }
    #main:focus-within { border-color: #808080; }
+   .divider  { position: static; background: #404040; border-color: #202020; }
    .block  { position: static; border-color: #101010; }
    .nblock { position: static; border-color: #400000; }
    </style>
@@ -49,7 +50,7 @@
    scorediv.innerText = 0;
    interval = 1000;
    width    = parseInt(widthbox.innerText);
-   height   = parseInt(heightbox.innerText);
+   height   = parseInt(heightbox.innerText) + 2;
    tilesize = parseInt(sizebox.innerText);
    current = [];
    let first = shapes[Math.floor(Math.random() * 7)];
@@ -69,7 +70,7 @@
    for (let i = 0; i < linedivs.length;)  { linedivs[0].remove(); }
    for (let i = 0; i < width * height; i++){
     let block = document.createElement("div");
-    block.className = "block";
+    if (i < width * 2) { block.className = "divider"; } else { block.className = "block"; }
     block.style.width = tilesize;
     block.style.height = tilesize;
     tetris.appendChild(block);}
@@ -80,7 +81,7 @@
     block.style.height = tilesize;
     line.appendChild(block);}
    for (let i = 0; i < height; i++) { blocks[i] = []; }
-   for (let i = 0; i < 4; i++) { current[i] = { x: first[i].x+Math.floor((width-4)/2), y: first[i].y, color: first[i].color, border: first[i].border } }
+   for (let i = 0; i < 4; i++) { current[i] = { x: first[i].x+Math.floor((width-4)/2), y: first[i].y+2, color: first[i].color, border: first[i].border } }
    placeblocks(current);
    render();
    rendernext(); }
@@ -108,7 +109,7 @@
      for (let k = i; k > 0; k--) { blocks[k] = blocks[k-1]; }
      blocks[0] = []; } } }
     current = [];
-    for (let i = 0; i < 4; i++) { current[i] = { x: next[i].x+Math.floor((width-4)/2), y: next[i].y, color: next[i].color, border: next[i].border } }
+    for (let i = 0; i < 4; i++) { current[i] = { x: next[i].x+Math.floor((width-4)/2), y: next[i].y+2, color: next[i].color, border: next[i].border } }
     next = shapes[Math.floor(Math.random() * 7)];
     swapblock = true;
     rendernext();

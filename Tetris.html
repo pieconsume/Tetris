@@ -163,7 +163,7 @@
    else if (event.code == "Space") { while(tick() != true) {} } }
   function trimtext(input){
    let validchars = "0123456789"
-   Array.from(input.innerText).forEach(c => {if (!validchars.includes(c)) { input.innerText = input.innerText.replace(c, ""); resetcursor(input); } });
+   Array.from(input.innerText).forEach(c => {if (!validchars.includes(c)) { input.innerText = input.innerText.replaceAll(c, ""); resetcursor(input); } });
    if (input.innerText.length > 4){ input.innerText = input.innerText.substring(0, 4); resetcursor(input); } }
   function resetcursor(input){
    if (input.innerText.length == 0) { return; }

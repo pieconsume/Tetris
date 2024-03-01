@@ -3,10 +3,11 @@
  <head>
   <title>Tetris</title>
   <style>
-   * { position: absolute; margin: 0px; border: none; padding: 0px; outline: none;  -webkit-touch-callout: none; -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+   * { position: absolute; margin: 0px; border: none; padding: 0px; outline: none; -webkit-touch-callout: none; -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
    div { border-style: solid; border-width: 2px; }
    #settings > div { width: 50px; height: 20px; }
-   .textbox { border: none; top: 0px; right: 0px; width: 32px; height: 20px; background: #404040; text-align: right; text-wrap: nowrap; }
+   .textbox { border: none; top: 0px; right: 0px; width: 32px; height: 20px; background: #404040; text-align: right; text-wrap: nowrap; -moz-appearance: textfield; }
+   input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
    #main              { border-color: #303030; }
    #main:focus-within { border-color: #808080; }
    .divider  { position: static; background: #404040; border-color: #202020; }
@@ -19,9 +20,9 @@
   <div id="restart"   style="background: #802020; border-color: #401010; text-align: center; top: 0px;" onclick="init()">Reset</div>
   <div id="scorediv"  style="background: #208020; border-color: #104010; text-align: center; top: 24px;">0</div>
   <div id="speeddiv"  style="background: #202080; border-color: #101040; text-align: center; top: 48px;">1000</div>
-  <div id="widthdiv"  style="background: #404040; border-color: #282828; text-align: left;   top: 72px;">W: <div id="widthbox"  class="textbox" contenteditable="true" oninput="trimtext(widthbox)">10</div></div>
-  <div id="heightdiv" style="background: #404040; border-color: #282828; text-align: left;   top: 96px;">H: <div id="heightbox" class="textbox" contenteditable="true" oninput="trimtext(heightbox)">20</div></div>
-  <div id="sizediv"   style="background: #404040; border-color: #282828; text-align: left;   top: 120px;">S: <div id="sizebox"   class="textbox" contenteditable="true" oninput="trimtext(sizebox)">20</div></div>
+  <div id="widthdiv"  style="background: #404040; border-color: #282828; text-align: left;   top: 72px; ">W: <input id="widthbox"  class="textbox" type="number" value="10"/></div>
+  <div id="heightdiv" style="background: #404040; border-color: #282828; text-align: left;   top: 96px; ">H: <input id="heightbox" class="textbox" type="number" value="20"/></div>
+  <div id="sizediv"   style="background: #404040; border-color: #282828; text-align: left;   top: 120px;">S: <input id="sizebox"   class="textbox" type="number" value="20"/></div>
   </div>
   <div id="main" style="border-width: 4px; top: 10px; left: 76px; display: grid;">
    <div id="line"   style="border: none; display: grid;"></div>
@@ -50,11 +51,11 @@
    scorediv.innerText = 0;
    interval = 1000;
    speeddiv.innerText = interval;
-   width    = parseInt(widthbox.innerText);
-   height   = parseInt(heightbox.innerText) + 2;
-   tilesize = parseInt(sizebox.innerText);
-   if (width < 4) { width = 4; widthbox.innerText = 4; }
-   if (height < 6) { height = 6; heightbox.innerText = 4; }
+   width    = parseInt(widthbox.value);
+   height   = parseInt(heightbox.value) + 2;
+   tilesize = parseInt(sizebox.value);
+   if (width < 4) { width = 4; widthbox.value = 4; }
+   if (height < 6) { height = 6; heightbox.value = 4; }
    current = [];
    let first = shapes[Math.floor(Math.random() * 7)];
    next = shapes[Math.floor(Math.random() * 7)];
@@ -161,16 +162,5 @@
    else if (event.code == "KeyS") { tick(); clearInterval(timer); timer = setInterval(tick, interval); }
    else if (event.code == "KeyD"){ let right = []; for (let i = 0; i < 4; i++) { right[i] = { x: current[i].x+1, y: current[i].y, color: current[i].color, border: current[i].border } } trymovement(right); }
    else if (event.code == "Space") { while(tick() != true) {} } }
-  function trimtext(input){
-   let validchars = "0123456789"
-   Array.from(input.innerText).forEach(c => {if (!validchars.includes(c)) { input.innerText = input.innerText.replaceAll(c, ""); resetcursor(input); } });
-   if (input.innerText.length > 4){ input.innerText = input.innerText.substring(0, 4); resetcursor(input); } }
-  function resetcursor(input){
-   if (input.innerText.length == 0) { return; }
-   let range = document.createRange();
-   let sel = window.getSelection();
-   range.setStart(input.childNodes[0], input.innerText.length);
-   sel.removeAllRanges();
-   sel.addRange(range);}
   </script>
  </html>

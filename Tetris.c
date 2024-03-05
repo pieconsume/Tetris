@@ -248,6 +248,8 @@
  extern int rand();
  void trinit();
  int  trtick();
+ void trswapnxblock();
+ void trsetnexblock(uint64_t block[4]);
  void trassignblock(uint64_t block[4]);
  void trclearblocks(uint64_t block[4]);
  void trplaceblocks(uint64_t block[4]);
@@ -303,7 +305,7 @@
   0x00F000FF,  //0x22, S Block alt border
   0xF0C0F0FF,  //0x23, T Block alt border
   0xF0C080FF}; //0x24, Z Block alt border
- uint  trwidth = 10, trheight = 20, trblocksz = 24;
+ uint  trwidth, trheight, trblocksz;
  uint* trbuffer;
  uint64_t  curblock[4];
  uint64_t  nexblock[4];
@@ -401,10 +403,15 @@ int main(){
 //Tetris
  void trinit(){
   if (trbuffer != 0) { free(trbuffer); }
+  trheight = 22;
+  trwidth = 10;
+  trblocksz = 24;
   trbuffer = malloc(trwidth*trheight*4);
-  for (int i = 0; i < trwidth*trheight; i++) { trbuffer[i] = 0x000D0000; }
-  setdiv(7, 0x00000000, (0x02<<16)+0x00, (74<<16)+10,  ((trwidth*trblocksz+4)<<16)+trheight*trblocksz+4);
-  trassignblock(shapes[rand() % 7]);
+  for (int i = 0; i < trwidth*2; i++) { trbuffer[i] = 0x00030001; }
+  for (int i = trwidth*2; i < trwidth*trheight; i++) { trbuffer[i] = 0x000D0000; }
+  setdiv(7, 0x00000000, (0x02<<16)+0x00, (74<<16)+10,  ((trwidth*trblocksz+4)<<16)+(trheight+2)*trblocksz+4);
+  trsetnexblock(shapes[rand() % 7]);
+  trswapnxblock();
   trplaceblocks(curblock);
   render();}
  int trtick(){
@@ -412,22 +419,25 @@ int main(){
   trclearblocks(curblock);
   if (!trchkmovement(down)){
    trplaceblocks(curblock);
-   trassignblock(shapes[rand() % 7]);
+   trswapnxblock();
    if (!trchkmovement(curblock)) { trinit(); return 1; }
    for (int i = 0; i < trheight; i++){
     int count = 0;
     for (int j = 0; j < trwidth; j++) { if (trbuffer[i*trwidth+j] != 0x000D0000) { count++; } }
-    if (count == trwidth) { for (int j = i; j > 0; j--) { for (int k = 0; k < trwidth; k++) { trbuffer[j*trwidth+k] = trbuffer[(j-1)*trwidth+k]; } } } }
+    if (count == trwidth) { for (int j = i; j > 2; j--) { for (int k = 0; k < trwidth; k++) { trbuffer[j*trwidth+k] = trbuffer[(j-1)*trwidth+k]; } } } }
    trplaceblocks(curblock);
    render();
    return 1;}
   trtrymovement(down);
   render();
   return 0;}
+ void trswapnxblock()                  { for (int i = 0; i < 4; i++) { curblock[i] = nexblock[i] + 0x200000000 + 0x1000000000000*(trwidth-4)/2; } trsetnexblock(shapes[rand() % 7]); }
+ void trsetnexblock(uint64_t block[4]) { for (int i = 0; i < 4; i++) { nexblock[i] = block[i]; } }
  void trassignblock(uint64_t block[4]) { for (int i = 0; i < 4; i++) { curblock[i] = block[i]; } }
- void trclearblocks(uint64_t block[4]) { for (int i = 0; i < 4; i++) { short x = block[i]>>48; short y = block[i]>>32&0xFFFF; trbuffer[y*trwidth+x] = 0x000D0000; } }
+ void trclearblocks(uint64_t block[4]) { for (int i = 0; i < 4; i++) { short x = block[i]>>48; short y = block[i]>>32&0xFFFF; if (y < 2) { trbuffer[y*trwidth+x] = 0x00030001; } else { trbuffer[y*trwidth+x] = 0x000D0000; } } }
  void trplaceblocks(uint64_t block[4]) { for (int i = 0; i < 4; i++) { short x = block[i]>>48; short y = block[i]>>32&0xFFFF; int color = block[i]&0xFFFFFFFF; trbuffer[y*trwidth+x] = color; } }
- int  trchkmovement(uint64_t block[4]) { for (int i = 0; i < 4; i++) { short x = block[i]>>48; short y = block[i]>>32&0xFFFF; if (x<0 || y<0 || x>=trwidth || y>=trheight || trbuffer[y*trwidth+x] != 0x000D0000) { return 0; } } return 1; }
+ int  trchkmovement(uint64_t block[4]){
+  for (int i = 0; i < 4; i++) { short x = block[i]>>48; short y = block[i]>>32&0xFFFF; if (x<0 || y<0 || x>=trwidth || y>=trheight || (trbuffer[y*trwidth+x] != 0x000D0000 && trbuffer[y*trwidth+x] != 0x00030001)) { return 0; } } return 1; }
  void trtrymovement(uint64_t block[4]) { trclearblocks(curblock); if (trchkmovement(block)) { trassignblock(block); } trplaceblocks(curblock); render(); }
  void rotateblock(int clockwise){
   if ((curblock[1] & 0xFFFF) == 0x0021) { return; } //O block
@@ -448,12 +458,29 @@ int main(){
   glUniform1ui(idxoffset, 0);
   glDrawArrays(0x0000, 0, divcount);
   glUniform1ui(rendertype, 1);
+  for (int i = 0; i < 2; i++) { for (int j = 0; j < trwidth; j++) { glUniform4ui(udiv, 0x02000000, (0x000D<<16)+0x0004, ((j*trblocksz+76)<<16)+i*trblocksz+12, (trblocksz<<16)+trblocksz); glDrawArrays(0x0000, 0, 1); } }
+  for (int i = 0; i < 4; i++){
+   short x = (nexblock[i]>>48) + (trwidth-4)/2;
+   short y = nexblock[i]>>32&0xFFFF;
+   int color = nexblock[i]&0xFFFFFFFF;
+   glUniform4ui(udiv, 0x02000000, color, ((x*trblocksz+76)<<16)+y*trblocksz+12, (trblocksz<<16)+trblocksz);
+   glDrawArrays(0x0000, 0, 1);}
   for (int i = 0; i < trheight; i++) { for (int j = 0; j < trwidth; j++) {
    int colors = trbuffer[i*trwidth+j];
    short  color1 = colors >> 16;
    short  color2 = colors &  0xFFFF;
-   glUniform4ui(udiv, 0x02000000, (color1<<16)+color2, ((j*trblocksz+76)<<16)+i*trblocksz+12, (trblocksz<<16)+trblocksz);
+   glUniform4ui(udiv, 0x02000000, (color1<<16)+color2, ((j*trblocksz+76)<<16)+(i+2)*trblocksz+12, (trblocksz<<16)+trblocksz);
    glDrawArrays(0x0000, 0, 1);} }
+  trclearblocks(curblock);
+  uint64_t outline[4] = { curblock[0], curblock[1], curblock[2], curblock[3] };
+  while (trchkmovement(outline) == 1) { for (int i = 0; i < 4; i++) { outline[i] += 0x100000000; } }
+  for (int i = 0; i < 4; i++){
+   short x = outline[i]>>48;
+   short y = outline[i]>>32&0xFFFF;
+   short outcolor = outline[i]&0xFFFF;
+   glUniform4ui(udiv, 0x02000000, (0x000D<<16)+outcolor, ((x*trblocksz+76)<<16)+(y+1)*trblocksz+12, (trblocksz<<16)+trblocksz);
+   glDrawArrays(0x0000, 0, 1);}
+  trplaceblocks(curblock);
   glfwSwapBuffers(window);}
  void drawtext(uint location, uint color, char* str){
   int len; for (len = 0; str[len] != 0; len++){}

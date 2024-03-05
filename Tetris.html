@@ -17,13 +17,13 @@
   </head>
  <body style="background: #000000">
   <div id="settings" style="border-color: #303030; left: 10px; top: 10px; width: 54px; height: 144px;">
-  <div id="restart"   style="background: #802020; border-color: #401010; text-align: center; top: 0px;" onclick="init()">Reset</div>
-  <div id="scorediv"  style="background: #208020; border-color: #104010; text-align: center; top: 24px;">0</div>
-  <div id="speeddiv"  style="background: #202080; border-color: #101040; text-align: center; top: 48px;">1000</div>
-  <div id="widthdiv"  style="background: #404040; border-color: #282828; text-align: left;   top: 72px; ">W: <input id="widthbox"  class="textbox" type="number" value="10"/></div>
-  <div id="heightdiv" style="background: #404040; border-color: #282828; text-align: left;   top: 96px; ">H: <input id="heightbox" class="textbox" type="number" value="20"/></div>
-  <div id="sizediv"   style="background: #404040; border-color: #282828; text-align: left;   top: 120px;">S: <input id="sizebox"   class="textbox" type="number" value="20"/></div>
-  </div>
+   <div id="restart"   style="background: #802020; border-color: #401010; text-align: center; top: 0px;" onclick="init()">Reset</div>
+   <div id="scorediv"  style="background: #208020; border-color: #104010; text-align: center; top: 24px;">0</div>
+   <div id="speeddiv"  style="background: #202080; border-color: #101040; text-align: center; top: 48px;">1000</div>
+   <div id="widthdiv"  style="background: #404040; border-color: #282828; text-align: left;   top: 72px; ">W: <input id="widthbox"  class="textbox" type="number" value="10"/></div>
+   <div id="heightdiv" style="background: #404040; border-color: #282828; text-align: left;   top: 96px; ">H: <input id="heightbox" class="textbox" type="number" value="20"/></div>
+   <div id="sizediv"   style="background: #404040; border-color: #282828; text-align: left;   top: 120px;">S: <input id="sizebox"   class="textbox" type="number" value="20"/></div>
+   </div>
   <div id="main" style="border-width: 4px; top: 10px; left: 76px; display: grid;">
    <div id="line"   style="border: none; display: grid;"></div>
    <div id="tetris" style="border: none; display: grid;" tabindex="-1"></div>
@@ -51,6 +51,7 @@
    scorediv.innerText = 0;
    interval = 1000;
    speeddiv.innerText = interval;
+   clearInterval(timer);
    width    = parseInt(widthbox.value);
    height   = parseInt(heightbox.value) + 2;
    tilesize = parseInt(sizebox.value);

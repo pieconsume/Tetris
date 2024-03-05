@@ -52,6 +52,7 @@
    interval = 1000;
    speeddiv.innerText = interval;
    clearInterval(timer);
+   if (document.activeElement.id == "tetris") { timer = setInterval(tick, interval); }
    width    = parseInt(widthbox.value);
    height   = parseInt(heightbox.value) + 2;
    tilesize = parseInt(sizebox.value);

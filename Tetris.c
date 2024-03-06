@@ -255,18 +255,24 @@
  void trplaceblocks(uint64_t block[4]);
  int  trchkmovement(uint64_t block[4]);
  void trtrymovement(uint64_t block[4]);
- void rotateblock(int clockwise);
- int   divcount = 8;
+ int parseint(char str[4]){
+  int result = 0;
+  if (str[0] != 0x20) { result += (str[0]-0x30)*1000; }
+  if (str[1] != 0x20) { result += (str[1]-0x30)*100; }
+  if (str[2] != 0x20) { result += (str[2]-0x30)*10; }
+  if (str[3] != 0x20) { result += (str[3]-0x30); }
+  return result; }
+ int numtostr(int num) { return '0000' + (num / 1000) + ((num / 100 % 10) << 8) + ((num / 10 % 10) << 16) + ((num % 10) << 24); }
+ void trrotateblock(int clockwise);
+ int   divcount = 7;
  uint  divs[4096]  ={
-  0x00000000, (0x02<<16)+0x00, (10<<16)+10,  (58<<16)+148, //0x00, Menu border
+  0x00000000, (0x02<<16)+0x00, (10<<16)+10,  (58<<16)+148, //0x00, Menu
   0x02000000, (0x06<<16)+0x09, (12<<16)+12,  (54<<16)+24,  //0x01, Restart
   0x02000000, (0x07<<16)+0x0A, (12<<16)+36,  (54<<16)+24,  //0x02, Score
   0x02000000, (0x08<<16)+0x0B, (12<<16)+60,  (54<<16)+24,  //0x03, Speed
   0x02000000, (0x03<<16)+0x0C, (12<<16)+84,  (54<<16)+24,  //0x04, Width
   0x02000000, (0x03<<16)+0x0C, (12<<16)+108, (54<<16)+24,  //0x05, Height
-  0x02000000, (0x03<<16)+0x0C, (12<<16)+132, (54<<16)+24,  //0x06, Size
-  0x00000000, (0x02<<16)+0x00, (74<<16)+10,  (8 <<16)+8,   //0x07, Main
-  };
+  0x02000000, (0x03<<16)+0x0C, (12<<16)+132, (54<<16)+24}; //0x06, Size
  uint  colors[256] ={
   0x101010FF,  //0x00, Block outline
   0x202020FF,  //0x01, Divider outline
@@ -305,7 +311,7 @@
   0x00F000FF,  //0x22, S Block alt border
   0xF0C0F0FF,  //0x23, T Block alt border
   0xF0C080FF}; //0x24, Z Block alt border
- uint  trwidth, trheight, trblocksz;
+ uint  trwidth, trheight, trblocksz, trdivwidth, trdivheight;
  uint* trbuffer;
  uint64_t  curblock[4];
  uint64_t  nexblock[4];
@@ -318,6 +324,14 @@
   { 0x000000010015001C, 0x0001000100150023, 0x000100000015001C, 0x000200010015001C },  //T block
   { 0x000000000016001D, 0x0001000000160024, 0x000100010016001D, 0x000200010016001D }}; //Z block
  double time;
+ int score = 0;
+ int interval = 1000;
+ int focused = -1;
+ char scorestr[5];
+ char speedstr[5];
+ char wstr[5] = "  10"; char wstrlen = 2;
+ char hstr[5] = "  20"; char hstrlen = 2;
+ char sstr[5] = "  20"; char sstrlen = 2;
 int main(){
  #ifdef windows
   initgl();
@@ -387,8 +401,9 @@ int main(){
  while(!glfwWindowShouldClose(window)){
   glfwGetFramebufferSize(window, &width, &height);
   if (oldwidth != width || oldheight != height) { oldwidth = width; oldheight = height;  glViewport(0, 0, width, height); glUniform2ui(res, width, height); render(); }
-  double newtime = glfwGetTime();
-  if (newtime - time > 1) { trtick(); time = newtime; }
+  if (focused == 3){
+   double newtime = glfwGetTime();
+   if (newtime - time > (double)interval / 1000) { trtick(); time = newtime; } }
   glfwPollEvents();}
   done();}
  int makeshader(int type, char** source){
@@ -403,29 +418,37 @@ int main(){
 //Tetris
  void trinit(){
   if (trbuffer != 0) { free(trbuffer); }
-  trheight = 22;
-  trwidth = 10;
-  trblocksz = 24;
+  ((int*)scorestr)[0] = '0000';
+  ((int*)speedstr)[0] = '0001';
+  interval = 1000;
+  trwidth = parseint(wstr); trheight = parseint(hstr)+2; trblocksz = parseint(sstr)+4;
+  if (trwidth < 4) { trwidth = 4; } if (trheight < 4) { trheight = 4; }
+  trdivwidth = trwidth*trblocksz+4; trdivheight = (trheight+2)*trblocksz+4;
+  setdiv(7, 0x00000000, (0x02<<16)+0x00, (74<<16)+10,  (trdivwidth<<16)+trdivheight);
   trbuffer = malloc(trwidth*trheight*4);
   for (int i = 0; i < trwidth*2; i++) { trbuffer[i] = 0x00030001; }
   for (int i = trwidth*2; i < trwidth*trheight; i++) { trbuffer[i] = 0x000D0000; }
-  setdiv(7, 0x00000000, (0x02<<16)+0x00, (74<<16)+10,  ((trwidth*trblocksz+4)<<16)+(trheight+2)*trblocksz+4);
   trsetnexblock(shapes[rand() % 7]);
   trswapnxblock();
-  trplaceblocks(curblock);
   render();}
- int trtick(){
+ int  trtick(){
   uint64_t  down[4] = { curblock[0]+0x100000000, curblock[1]+0x100000000, curblock[2]+0x100000000, curblock[3]+0x100000000 };
   trclearblocks(curblock);
   if (!trchkmovement(down)){
    trplaceblocks(curblock);
    trswapnxblock();
    if (!trchkmovement(curblock)) { trinit(); return 1; }
-   for (int i = 0; i < trheight; i++){
+   for (int i = 2; i < trheight; i++){
     int count = 0;
     for (int j = 0; j < trwidth; j++) { if (trbuffer[i*trwidth+j] != 0x000D0000) { count++; } }
-    if (count == trwidth) { for (int j = i; j > 2; j--) { for (int k = 0; k < trwidth; k++) { trbuffer[j*trwidth+k] = trbuffer[(j-1)*trwidth+k]; } } } }
-   trplaceblocks(curblock);
+    if (count == trwidth){
+     score++; ((int*)scorestr)[0] = numtostr(score);
+     if      (interval > 500) { interval -= 50; }
+     else if (interval > 250) { interval -= 25; }
+     else if (interval > 150) { interval -= 10; }
+     else if (interval > 100) { interval -= 5; }
+     ((int*)speedstr)[0] = numtostr(interval);
+     for (int j = i; j > 2; j--) { for (int k = 0; k < trwidth; k++) { trbuffer[j*trwidth+k] = trbuffer[(j-1)*trwidth+k]; } } } }
    render();
    return 1;}
   trtrymovement(down);
@@ -438,8 +461,8 @@ int main(){
  void trplaceblocks(uint64_t block[4]) { for (int i = 0; i < 4; i++) { short x = block[i]>>48; short y = block[i]>>32&0xFFFF; int color = block[i]&0xFFFFFFFF; trbuffer[y*trwidth+x] = color; } }
  int  trchkmovement(uint64_t block[4]){
   for (int i = 0; i < 4; i++) { short x = block[i]>>48; short y = block[i]>>32&0xFFFF; if (x<0 || y<0 || x>=trwidth || y>=trheight || (trbuffer[y*trwidth+x] != 0x000D0000 && trbuffer[y*trwidth+x] != 0x00030001)) { return 0; } } return 1; }
- void trtrymovement(uint64_t block[4]) { trclearblocks(curblock); if (trchkmovement(block)) { trassignblock(block); } trplaceblocks(curblock); render(); }
- void rotateblock(int clockwise){
+ void trtrymovement(uint64_t block[4]) { trclearblocks(curblock); if (trchkmovement(block)) { trassignblock(block); } render(); }
+ void trrotateblock(int clockwise){
   if ((curblock[1] & 0xFFFF) == 0x0021) { return; } //O block
   uint64_t centerx = curblock[1]>>48;
   uint64_t centery = curblock[1]>>32 & 0xFFFF;
@@ -457,30 +480,52 @@ int main(){
   glUniform1ui(rendertype, 0);
   glUniform1ui(idxoffset, 0);
   glDrawArrays(0x0000, 0, divcount);
+  drawtext((24<<16)+12 +8,  0x000D, "Reset");
+  drawtext((28<<16)+36 +8,  0x000D, scorestr);
+  drawtext((28<<16)+60 +8,  0x000D, speedstr);
+  drawtext((16<<16)+84 +8, 0x000D, "W:");
+  drawtext((16<<16)+108+8, 0x000D, "H:");
+  drawtext((16<<16)+132+8, 0x000D, "S:");
+  drawtext((32<<16)+84 +8, 0x000D, wstr);
+  drawtext((32<<16)+108+8, 0x000D, hstr);
+  drawtext((32<<16)+132+8, 0x000D, sstr);
   glUniform1ui(rendertype, 1);
-  for (int i = 0; i < 2; i++) { for (int j = 0; j < trwidth; j++) { glUniform4ui(udiv, 0x02000000, (0x000D<<16)+0x0004, ((j*trblocksz+76)<<16)+i*trblocksz+12, (trblocksz<<16)+trblocksz); glDrawArrays(0x0000, 0, 1); } }
-  for (int i = 0; i < 4; i++){
-   short x = (nexblock[i]>>48) + (trwidth-4)/2;
-   short y = nexblock[i]>>32&0xFFFF;
-   int color = nexblock[i]&0xFFFFFFFF;
-   glUniform4ui(udiv, 0x02000000, color, ((x*trblocksz+76)<<16)+y*trblocksz+12, (trblocksz<<16)+trblocksz);
-   glDrawArrays(0x0000, 0, 1);}
-  for (int i = 0; i < trheight; i++) { for (int j = 0; j < trwidth; j++) {
-   int colors = trbuffer[i*trwidth+j];
-   short  color1 = colors >> 16;
-   short  color2 = colors &  0xFFFF;
-   glUniform4ui(udiv, 0x02000000, (color1<<16)+color2, ((j*trblocksz+76)<<16)+(i+2)*trblocksz+12, (trblocksz<<16)+trblocksz);
-   glDrawArrays(0x0000, 0, 1);} }
-  trclearblocks(curblock);
-  uint64_t outline[4] = { curblock[0], curblock[1], curblock[2], curblock[3] };
-  while (trchkmovement(outline) == 1) { for (int i = 0; i < 4; i++) { outline[i] += 0x100000000; } }
-  for (int i = 0; i < 4; i++){
-   short x = outline[i]>>48;
-   short y = outline[i]>>32&0xFFFF;
-   short outcolor = outline[i]&0xFFFF;
-   glUniform4ui(udiv, 0x02000000, (0x000D<<16)+outcolor, ((x*trblocksz+76)<<16)+(y+1)*trblocksz+12, (trblocksz<<16)+trblocksz);
-   glDrawArrays(0x0000, 0, 1);}
-  trplaceblocks(curblock);
+  if (focused == 0) { glUniform4ui(udiv, 0x00000000, 0x000D0000, (60<<16)+84+6,  (1<<16)+11); glDrawArrays(0x0000, 0, 1); }
+  if (focused == 1) { glUniform4ui(udiv, 0x00000000, 0x000D0000, (60<<16)+108+6, (1<<16)+11); glDrawArrays(0x0000, 0, 1); }
+  if (focused == 2) { glUniform4ui(udiv, 0x00000000, 0x000D0000, (60<<16)+132+6, (1<<16)+11); glDrawArrays(0x0000, 0, 1); }
+  //Tetris
+   int color; if (focused == 3) { color = 0x05; } else { color = 0x02; }
+   glUniform4ui(udiv, 0x00000000, (color<<16)+0x00, (74<<16)+10, (trdivwidth<<16)+trdivheight);
+   glDrawArrays(0x0000, 0, 1);
+   for (int i = 0; i < 2; i++) { for (int j = 0; j < trwidth; j++) { glUniform4ui(udiv, 0x02000000, (0x000D<<16)+0x0004, ((j*trblocksz+76)<<16)+i*trblocksz+12, (trblocksz<<16)+trblocksz); glDrawArrays(0x0000, 0, 1); } }
+   for (int i = 0; i < 4; i++){
+    short x = (nexblock[i]>>48) + (trwidth-4)/2;
+    short y = nexblock[i]>>32&0xFFFF;
+    int color = nexblock[i]&0xFFFFFFFF;
+    glUniform4ui(udiv, 0x02000000, color, ((x*trblocksz+76)<<16)+y*trblocksz+12, (trblocksz<<16)+trblocksz);
+    glDrawArrays(0x0000, 0, 1);}
+   for (int i = 0; i < trheight; i++) { for (int j = 0; j < trwidth; j++) {
+    int colors = trbuffer[i*trwidth+j];
+    short  color1 = colors >> 16;
+    short  color2 = colors &  0xFFFF;
+    glUniform4ui(udiv, 0x02000000, (color1<<16)+color2, ((j*trblocksz+76)<<16)+(i+2)*trblocksz+12, (trblocksz<<16)+trblocksz);
+    glDrawArrays(0x0000, 0, 1);} }
+   trclearblocks(curblock);
+   uint64_t outline[4] = { curblock[0], curblock[1], curblock[2], curblock[3] };
+   while (trchkmovement(outline) == 1) { for (int i = 0; i < 4; i++) { outline[i] += 0x100000000; } } for (int i = 0; i < 4; i++) { outline[i] -= 0x100000000; }
+   for (int i = 0; i < 4; i++){
+    short x        = outline[i]>>48;
+    short y        = outline[i]>>32&0xFFFF;
+    short outcolor = outline[i]&0xFFFF;
+    glUniform4ui(udiv, 0x02000000, (0x000D<<16)+outcolor, ((x*trblocksz+76)<<16)+(y+2)*trblocksz+12, (trblocksz<<16)+trblocksz);
+    glDrawArrays(0x0000, 0, 1);}
+   trplaceblocks(curblock);
+   for (int i = 0; i < 4; i++){
+    short x =   curblock[i]>>48;
+    short y =   curblock[i]>>32&0xFFFF;
+    int color = curblock[i]&0xFFFFFFFF;
+    glUniform4ui(udiv, 0x02000000, color, ((x*trblocksz+76)<<16)+(y+2)*trblocksz+12, (trblocksz<<16)+trblocksz);
+    glDrawArrays(0x0000, 0, 1);}
   glfwSwapBuffers(window);}
  void drawtext(uint location, uint color, char* str){
   int len; for (len = 0; str[len] != 0; len++){}
@@ -511,32 +556,40 @@ int main(){
   glBufferSubData(0x8A11, 0, sizeof(colors) / 4, colors);}
 //Events
  void onmousedown(void* window, int button, int action, int mods){
+  if (action != 1) { return; }
   double mousexd, mouseyd;
   glfwGetCursorPos(window, &mousexd, &mouseyd);
   int mousex = (int)mousexd, mousey = (int)mouseyd;
-  int pressed[16];
-  for (int i = 0; i < divcount; i++){
-   int basex, basey, offsetx, offsety;
-   int flags = divs[i*4+0], base = divs[i*4+2], offs = divs[i*4+3];
-   int bx = base >> 16, by = base &  0xFFFFu;
-   int ox = offs >> 16, oy = offs &  0xFFFFu;
-   if ((flags & 0x01u) != 0) { bx = width  - bx; }
-   if ((flags & 0x02u) != 0) { by = height - by; }
-   if ((flags & 0x10u) == 0) { if ((flags & 0x04u) != 0) { ox = bx-ox; } else { ox = bx+ox; } } else { if ((flags & 0x40u) != 0) { ox = width  - ox; } }
-   if ((flags & 0x20u) == 0) { if ((flags & 0x08u) != 0) { oy = by-oy; } else { oy = by+oy; } } else { if ((flags & 0x80u) != 0) { oy = height - oy; } }
-   if (bx < ox) { basex = bx; offsetx = ox; } else { basex = ox; offsetx = bx; }
-   if (by < oy) { basey = by; offsety = oy; } else { basey = oy; offsety = by; }
-   if (button == 0 && action == 1){
-    if (mousex > basex && mousex < offsetx && mousey > basey && mousey < offsety) { pressed[i] = 1; }
-    else { pressed[i] = 0; } } } }
- void ontextinput(void* window, uint codepoint) { }
+  //Base 10, 10,  Offset 58, 148 Menu
+  //Base 12, 12,  Offset 54, 24  Restart
+  //Base 12, 84,  Offset 54, 24  Width
+  //Base 12, 108, Offset 54, 24  Height
+  //Base 12, 132, Offset 54, 24  Size
+  //Base 74, 10,  Offset TW, TH  Main
+  if      (mousex > 12 && mousey > 12  && mousex < 12+54 && mousey <  12+24)                 { trinit(); }
+  else if (mousex > 12 && mousey > 84  && mousex < 12+54 && mousey <  84+24)                 { focused = 0; }
+  else if (mousex > 12 && mousey > 108 && mousex < 12+54 && mousey < 108+24)                 { focused = 1; }
+  else if (mousex > 12 && mousey > 132 && mousex < 12+54 && mousey < 132+24)                 { focused = 2; }
+  else if (mousex > 74 && mousey > 10  && mousex < trdivwidth+78 && mousey < trdivheight+10) { focused = 3; }
+  else { focused = -1; }
+  render();}
+ void ontextinput(void* window, uint codepoint){
+  if (codepoint < 0x30 || codepoint > 0x39) { return; }
+  if      (focused == 0) { if (wstrlen < 4) { ((int*)wstr)[0] = ((int*)wstr)[0] >> 8; wstr[3] = codepoint & 0xFF; wstrlen++; } }
+  else if (focused == 1) { if (hstrlen < 4) { ((int*)hstr)[0] = ((int*)hstr)[0] >> 8; hstr[3] = codepoint & 0xFF; hstrlen++; } }
+  else if (focused == 2) { if (sstrlen < 4) { ((int*)sstr)[0] = ((int*)sstr)[0] >> 8; sstr[3] = codepoint & 0xFF; sstrlen++; } }
+  render();}
  void onkeydown(void* window, int key, int scancode, int action, int mods){
   if (action != 1 && action != 2 /*Press and repeat*/) { return; }
-  if      (key == 81 /*Q*/) { rotateblock(1); }
-  else if (key == 69 /*E*/) { rotateblock(0); }
-  else if (key == 65 /*A*/) { uint64_t  left[4] =  { curblock[0]-0x1000000000000, curblock[1]-0x1000000000000, curblock[2]-0x1000000000000, curblock[3]-0x1000000000000 }; trtrymovement(left); }
-  else if (key == 68 /*D*/) { uint64_t  right[4] = { curblock[0]+0x1000000000000, curblock[1]+0x1000000000000, curblock[2]+0x1000000000000, curblock[3]+0x1000000000000 }; trtrymovement(right); }
-  else if (key == 83 /*S*/) { trtick(); time = glfwGetTime(); }
-  else if (key == 32 /* */) { while (trtick() != 1) { } time = glfwGetTime(); }
-  }
+  if      (focused == 0 && key == 259) { if (wstrlen > 0) { ((int*)wstr)[0] = ((int*)wstr)[0] << 8; wstr[0] = 0x20; wstrlen--; } }
+  else if (focused == 1 && key == 259) { if (hstrlen > 0) { ((int*)hstr)[0] = ((int*)hstr)[0] << 8; hstr[0] = 0x20; hstrlen--; } }
+  else if (focused == 2 && key == 259) { if (sstrlen > 0) { ((int*)sstr)[0] = ((int*)sstr)[0] << 8; sstr[0] = 0x20; sstrlen--; } }
+  else if (focused == 3){
+   if      (key == 81 /*Q*/) { trrotateblock(1); }
+   else if (key == 69 /*E*/) { trrotateblock(0); }
+   else if (key == 65 /*A*/) { uint64_t  left[4] =  { curblock[0]-0x1000000000000, curblock[1]-0x1000000000000, curblock[2]-0x1000000000000, curblock[3]-0x1000000000000 }; trtrymovement(left); }
+   else if (key == 68 /*D*/) { uint64_t  right[4] = { curblock[0]+0x1000000000000, curblock[1]+0x1000000000000, curblock[2]+0x1000000000000, curblock[3]+0x1000000000000 }; trtrymovement(right); }
+   else if (key == 83 /*S*/) { trtick(); time = glfwGetTime(); }
+   else if (key == 32 /* */) { while (trtick() != 1) { } time = glfwGetTime(); } } 
+  render(); }
  void done() { exit(0); }

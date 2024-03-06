@@ -251,7 +251,6 @@
  void trswapnxblock();
  void trsetnexblock(uint64_t block[4]);
  void trassignblock(uint64_t block[4]);
- void trclearblocks(uint64_t block[4]);
  void trplaceblocks(uint64_t block[4]);
  int  trchkmovement(uint64_t block[4]);
  void trtrymovement(uint64_t block[4]);
@@ -421,7 +420,7 @@ int main(){
   ((int*)scorestr)[0] = '0000';
   ((int*)speedstr)[0] = '0001';
   interval = 1000;
-  trwidth = parseint(wstr); trheight = parseint(hstr)+2; trblocksz = parseint(sstr)+4;
+  trwidth = parseint(wstr)+1; trheight = parseint(hstr)+2; trblocksz = parseint(sstr)+4;
   if (trwidth < 4) { trwidth = 4; } if (trheight < 4) { trheight = 4; }
   trdivwidth = trwidth*trblocksz+4; trdivheight = (trheight+2)*trblocksz+4;
   setdiv(7, 0x00000000, (0x02<<16)+0x00, (74<<16)+10,  (trdivwidth<<16)+trdivheight);
@@ -433,7 +432,6 @@ int main(){
   render();}
  int  trtick(){
   uint64_t  down[4] = { curblock[0]+0x100000000, curblock[1]+0x100000000, curblock[2]+0x100000000, curblock[3]+0x100000000 };
-  trclearblocks(curblock);
   if (!trchkmovement(down)){
    trplaceblocks(curblock);
    trswapnxblock();
@@ -454,14 +452,13 @@ int main(){
   trtrymovement(down);
   render();
   return 0;}
- void trswapnxblock()                  { for (int i = 0; i < 4; i++) { curblock[i] = nexblock[i] + 0x200000000 + 0x1000000000000*(trwidth-4)/2; } trsetnexblock(shapes[rand() % 7]); }
+ void trswapnxblock()                  { for (int i = 0; i < 4; i++) { curblock[i] = nexblock[i] + 0x200000000 + 0x1000000000000*((trwidth-4)/2); } trsetnexblock(shapes[rand() % 7]); }
  void trsetnexblock(uint64_t block[4]) { for (int i = 0; i < 4; i++) { nexblock[i] = block[i]; } }
  void trassignblock(uint64_t block[4]) { for (int i = 0; i < 4; i++) { curblock[i] = block[i]; } }
- void trclearblocks(uint64_t block[4]) { for (int i = 0; i < 4; i++) { short x = block[i]>>48; short y = block[i]>>32&0xFFFF; if (y < 2) { trbuffer[y*trwidth+x] = 0x00030001; } else { trbuffer[y*trwidth+x] = 0x000D0000; } } }
  void trplaceblocks(uint64_t block[4]) { for (int i = 0; i < 4; i++) { short x = block[i]>>48; short y = block[i]>>32&0xFFFF; int color = block[i]&0xFFFFFFFF; trbuffer[y*trwidth+x] = color; } }
  int  trchkmovement(uint64_t block[4]){
   for (int i = 0; i < 4; i++) { short x = block[i]>>48; short y = block[i]>>32&0xFFFF; if (x<0 || y<0 || x>=trwidth || y>=trheight || (trbuffer[y*trwidth+x] != 0x000D0000 && trbuffer[y*trwidth+x] != 0x00030001)) { return 0; } } return 1; }
- void trtrymovement(uint64_t block[4]) { trclearblocks(curblock); if (trchkmovement(block)) { trassignblock(block); } render(); }
+ void trtrymovement(uint64_t block[4]) { if (trchkmovement(block)) { trassignblock(block); } render(); }
  void trrotateblock(int clockwise){
   if ((curblock[1] & 0xFFFF) == 0x0021) { return; } //O block
   uint64_t centerx = curblock[1]>>48;
@@ -510,7 +507,6 @@ int main(){
     short  color2 = colors &  0xFFFF;
     glUniform4ui(udiv, 0x02000000, (color1<<16)+color2, ((j*trblocksz+76)<<16)+(i+2)*trblocksz+12, (trblocksz<<16)+trblocksz);
     glDrawArrays(0x0000, 0, 1);} }
-   trclearblocks(curblock);
    uint64_t outline[4] = { curblock[0], curblock[1], curblock[2], curblock[3] };
    while (trchkmovement(outline) == 1) { for (int i = 0; i < 4; i++) { outline[i] += 0x100000000; } } for (int i = 0; i < 4; i++) { outline[i] -= 0x100000000; }
    for (int i = 0; i < 4; i++){
@@ -519,7 +515,6 @@ int main(){
     short outcolor = outline[i]&0xFFFF;
     glUniform4ui(udiv, 0x02000000, (0x000D<<16)+outcolor, ((x*trblocksz+76)<<16)+(y+2)*trblocksz+12, (trblocksz<<16)+trblocksz);
     glDrawArrays(0x0000, 0, 1);}
-   trplaceblocks(curblock);
    for (int i = 0; i < 4; i++){
     short x =   curblock[i]>>48;
     short y =   curblock[i]>>32&0xFFFF;

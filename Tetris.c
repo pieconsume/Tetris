@@ -337,7 +337,7 @@ int main(){
   #endif
  //Window int
   glfwInit();
-  window = glfwCreateWindow(1600, 900, "Div renderer", 0, 0);
+  window = glfwCreateWindow(1600, 900, "Tetris", 0, 0);
   glfwMakeContextCurrent(window);
   glfwSetMouseButtonCallback(window, onmousedown);
   glfwSetCharCallback(window, ontextinput);
